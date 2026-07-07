@@ -66,3 +66,24 @@ export const sendAdmissionApprovalEmail = async (email, name, admissionNumber, r
     console.error(`Error sending admission approval email: ${error.message}`);
   }
 };
+
+/**
+ * Sends a password reset OTP email
+ */
+export const sendResetOTPEmail = async (email, otp) => {
+  try {
+    const transporter = await getTransporter();
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || 'noreply@college.edu',
+      to: email,
+      subject: 'Password Reset Verification Code - Metropolitan University',
+      text: `Hello,\n\nYou requested a password reset for your Metropolitan University ERP account.\n\nYour OTP (One Time Password) is: ${otp}\n\nThis verification code is valid for 10 minutes. If you did not make this request, please ignore this email.\n\nBest Regards,\nIT Support Desk\nMetropolitan University`,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`Password reset OTP email sent to ${email}`);
+  } catch (error) {
+    console.error(`Error sending password reset OTP email: ${error.message}`);
+  }
+};
+

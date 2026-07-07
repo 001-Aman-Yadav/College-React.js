@@ -350,6 +350,13 @@ class Model {
   constructor(tableName, schema) {
     this.tableName = tableName;
     this.schema = schema;
+    // Auto-create database table if not exists for pg-mongoose models
+    pool.query(`CREATE TABLE IF NOT EXISTS ${tableName} (
+      _id VARCHAR(100) PRIMARY KEY,
+      data JSONB NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )`).catch(err => console.error(`Error auto-creating table ${tableName}: ${err.message}`));
   }
 
   find(query) {

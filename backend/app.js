@@ -17,6 +17,7 @@ import teacherRoutes from './routes/teacherRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import noticeRoutes from './routes/noticeRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
+import placementRoutes from './routes/placementRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,6 +53,7 @@ app.use('/api/teachers', teacherRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/notices', noticeRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/placements', placementRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

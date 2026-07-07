@@ -41,8 +41,10 @@ const About = () => {
         {[
           { id: 'us', label: 'Who We Are', icon: <Landmark className="h-4 w-4" /> },
           { id: 'vision', label: 'Vision & Mission', icon: <Target className="h-4 w-4" /> },
+          { id: 'vc', label: 'VC Message', icon: <Users className="h-4 w-4" /> },
           { id: 'history', label: 'Our History', icon: <Compass className="h-4 w-4" /> },
           { id: 'infra', label: 'Campus Infrastructure', icon: <Award className="h-4 w-4" /> },
+          { id: 'accreditations', label: 'Accreditations', icon: <CheckCircle className="h-4 w-4" /> },
           { id: 'admin', label: 'Administration Office', icon: <Users className="h-4 w-4" /> },
         ].map((tab) => (
           <button
@@ -130,6 +132,51 @@ const About = () => {
                 <li>Engage with local and corporate stakeholders to foster values, social responsibility, and tech-driven career placement programs.</li>
               </ul>
             </div>
+          </div>
+        )}
+
+        {/* VC MESSAGE */}
+        {activeTab === 'vc' && (
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm grid gap-8 md:grid-cols-12 items-center">
+            <div className="md:col-span-3 text-center space-y-2">
+              <img 
+                src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=300" 
+                alt="Vice Chancellor" 
+                className="h-32 w-32 rounded-full mx-auto object-cover border-4 border-blue-500 shadow"
+              />
+              <h3 className="font-bold text-base mt-2">Prof. S. K. Suryavanshi</h3>
+              <p className="text-xs text-blue-600 font-semibold uppercase">Vice Chancellor, MU</p>
+            </div>
+            <div className="md:col-span-9 space-y-4">
+              <h2 className="text-xl font-bold">Message from the Vice Chancellor</h2>
+              <p className="text-sm text-slate-650 dark:text-slate-400 leading-relaxed">
+                Welcome to Metropolitan University. In this fast-evolving digital era, higher education must serve as an incubator for critical thought, practical adaptability, and visionary engineering. Our academic programs are designed to inspire students to look beyond conventional boundaries and address real-world community challenges.
+              </p>
+              <p className="text-sm text-slate-650 dark:text-slate-400 leading-relaxed font-medium italic">
+                "We do not teach subjects; we cultivate a mindset of resilience, creativity, and technological excellence. I invite you to join our family of innovators and redefine what is possible."
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ACCREDITATIONS */}
+        {activeTab === 'accreditations' && (
+          <div className="grid gap-6 sm:grid-cols-3">
+            {[
+              { title: 'NAAC Grade A+ Certification', body: 'The National Assessment and Accreditation Council has awarded Metropolitan University an A+ grade with a CGPA score of 3.65/4.0.', authority: 'NAAC, Govt of India' },
+              { title: 'AICTE Approval', body: 'All engineering, computing, and professional management degrees offered are officially approved by the All India Council for Technical Education.', authority: 'AICTE, New Delhi' },
+              { title: 'UGC Autonomous Status', body: 'Recognized as an autonomous university under Section 2(f) of the UGC Act 1956, granting independence for curriculum innovations.', authority: 'University Grants Commission' },
+              { title: 'NIRF Ranking', body: 'Ranked in the top 75 Engineering Institutes nationwide by the National Institutional Ranking Framework.', authority: 'NIRF, Ministry of Education' },
+              { title: 'ISO 9001:2015 Certified', body: 'Maintains international standards in teaching methodologies, laboratories setup, data management, and operations.', authority: 'ISO Registry' },
+              { title: 'QS I-GAUGE Diamond Rating', body: 'Awarded Diamond badge for visual learning infrastructures, student employabilities, and campus facilities.', authority: 'QS World University Rankings' },
+            ].map((acc, idx) => (
+              <div key={idx} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm space-y-3">
+                <CheckCircle className="h-6 w-6 text-emerald-500" />
+                <h3 className="font-bold text-sm text-slate-905 dark:text-white">{acc.title}</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{acc.body}</p>
+                <div className="text-[10px] uppercase font-bold text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-2">{acc.authority}</div>
+              </div>
+            ))}
           </div>
         )}
 

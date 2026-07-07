@@ -7,7 +7,9 @@ import {
   downloadBonafide,
   applyStudentLeave,
   submitStudentComplaint,
-  requestLibraryBook
+  requestLibraryBook,
+  applyJobDrive,
+  getStudyMaterials
 } from '../controllers/studentController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
@@ -25,5 +27,7 @@ router.get('/:id/bonafide', protect, downloadBonafide);
 router.post('/leave', protect, authorize('Student'), applyStudentLeave);
 router.post('/complaint', protect, authorize('Student'), submitStudentComplaint);
 router.post('/library', protect, authorize('Student'), requestLibraryBook);
+router.post('/placements/:driveId/apply', protect, authorize('Student'), applyJobDrive);
+router.get('/study-materials', protect, authorize('Student'), getStudyMaterials);
 
 export default router;

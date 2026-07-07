@@ -12,6 +12,9 @@ const Courses = () => {
     dispatch(fetchCourses());
   }, [dispatch]);
 
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [deptFilter, setDeptFilter] = React.useState('All');
+
   if (loading) {
     return (
       <div className="flex h-96 items-center justify-center">
@@ -34,15 +37,52 @@ const Courses = () => {
     );
   }
 
+  const filteredCourses = courses.filter((course) => {
+    const matchesSearch = course.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          course.code.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesDept = deptFilter === 'All' || 
+                        (course.department && course.department.toLowerCase() === deptFilter.toLowerCase()) ||
+                        (course.code.startsWith('CS') && deptFilter === 'Computer Science') ||
+                        (course.code.startsWith('MGT') && deptFilter === 'Management');
+    return matchesSearch && matchesDept;
+  });
+
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-10">
-      <div className="border-b border-slate-200 dark:border-slate-800 pb-5">
-        <h1 className="text-3xl font-extrabold tracking-tight">Offered Academic Programs</h1>
-        <p className="text-sm text-slate-500">Explore undergraduate and postgraduate degrees with industrial placements.</p>
+      <div className="border-b border-slate-200 dark:border-slate-800 pb-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight">Offered Academic Programs</h1>
+          <p className="text-sm text-slate-500">Explore undergraduate and postgraduate degrees with industrial placements.</p>
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-wrap gap-3 w-full md:w-auto">
+          <input
+            type="text"
+            placeholder="Search course name/code..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="rounded border border-slate-350 dark:border-slate-750 bg-white dark:bg-slate-900 px-3 py-2 text-xs sm:text-sm focus:border-blue-500 focus:outline-none text-slate-800 dark:text-slate-100 w-full sm:w-48"
+          />
+          <select
+            value={deptFilter}
+            onChange={(e) => setDeptFilter(e.target.value)}
+            className="rounded border border-slate-350 dark:border-slate-750 bg-white dark:bg-slate-900 px-3 py-2 text-xs sm:text-sm focus:border-blue-500 focus:outline-none text-slate-800 dark:text-slate-100"
+          >
+            <option value="All">All Departments</option>
+            <option value="Computer Science">Computer Science</option>
+            <option value="Management">Management / Commerce</option>
+            <option value="Engineering">Engineering</option>
+            <option value="Arts">Arts & Commerce</option>
+          </select>
+        </div>
       </div>
 
-      <div className="grid gap-8 md:grid-cols-2">
-        {courses.map((course) => (
+      {filteredCourses.length === 0 ? (
+        <p className="text-sm text-slate-400 py-12 text-center">No courses found matching your criteria.</p>
+      ) : (
+        <div className="grid gap-8 md:grid-cols-2">
+          {filteredCourses.map((course) => (
           <div key={course._id} className="flex flex-col rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden hover:shadow-md transition">
             {/* Header branding */}
             <div className="bg-gradient-to-r from-blue-900 to-indigo-900 px-6 py-6 text-white">
@@ -144,6 +184,7 @@ const Courses = () => {
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 };

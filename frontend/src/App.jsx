@@ -16,6 +16,7 @@ import Placements from './pages/Placements.jsx';
 import Contact from './pages/Contact.jsx';
 import Downloads from './pages/Downloads.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
+import AIChatbot from './components/AIChatbot.jsx';
 
 function Navigation() {
   const dispatch = useDispatch();
@@ -235,6 +236,7 @@ function App() {
           </Routes>
         </main>
         <Footer />
+        <AIChatbot />
       </div>
     </Router>
   );

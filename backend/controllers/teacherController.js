@@ -1,6 +1,8 @@
 import Teacher from '../models/teacher.js';
 import User from '../models/user.js';
 import Student from '../models/student.js';
+import Course from '../models/course.js';
+import StudyMaterial from '../models/studyMaterial.js';
 
 // @desc    Get all teachers
 // @route   GET /api/teachers
@@ -161,6 +163,129 @@ export const recordAttendance = async (req, res, next) => {
     }
 
     res.status(200).json({ success: true, message: 'Attendance recorded successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Upload new study material/notes
+// @route   POST /api/teachers/study-materials
+// @access  Private/Teacher
+export const uploadStudyMaterial = async (req, res, next) => {
+  try {
+    const teacher = await Teacher.findOne({ user: req.user._id });
+    if (!teacher) {
+      return res.status(404).json({ success: false, message: 'Teacher profile not found' });
+    }
+
+    const { title, courseId, subject, description, fileUrl } = req.body;
+    if (!title || !courseId || !subject || !fileUrl) {
+      return res.status(400).json({ success: false, message: 'Please provide title, course, subject and content.' });
+    }
+
+    const material = await StudyMaterial.create({
+      title,
+      course: courseId,
+      subject,
+      description,
+      fileUrl,
+      uploadedBy: `${teacher.firstName} ${teacher.lastName}`,
+    });
+
+    res.status(201).json({ success: true, message: 'Study material uploaded successfully', data: material });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Delete study material/notes
+// @route   DELETE /api/teachers/study-materials/:id
+// @access  Private/Teacher
+export const deleteStudyMaterial = async (req, res, next) => {
+  try {
+    const material = await StudyMaterial.findById(req.params.id);
+    if (!material) {
+      return res.status(404).json({ success: false, message: 'Study material not found' });
+    }
+
+    await StudyMaterial.findByIdAndDelete(req.params.id);
+    res.status(200).json({ success: true, message: 'Study material deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get teacher study materials list
+// @route   GET /api/teachers/study-materials
+// @access  Private/Teacher
+export const getUploadedStudyMaterials = async (req, res, next) => {
+  try {
+    const teacher = await Teacher.findOne({ user: req.user._id });
+    if (!teacher) {
+      return res.status(404).json({ success: false, message: 'Teacher profile not found' });
+    }
+    const materials = await StudyMaterial.find().sort({ createdAt: -1 });
+    // Filter matching uploadedBy
+    const filtered = materials.filter(m => m.uploadedBy === `${teacher.firstName} ${teacher.lastName}`);
+    res.status(200).json({ success: true, data: filtered });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get teacher salary slips
+// @route   GET /api/teachers/salary-slips
+// @access  Private/Teacher
+export const getTeacherSalarySlips = async (req, res, next) => {
+  try {
+    const teacher = await Teacher.findOne({ user: req.user._id });
+    if (!teacher) {
+      return res.status(404).json({ success: false, message: 'Teacher profile not found' });
+    }
+
+    // Generate mock salary slips matching teacher's salary
+    const baseSalary = teacher.salary || 65000;
+    const months = ['June 2026', 'May 2026', 'April 2026', 'March 2026'];
+    const slips = months.map((month, idx) => {
+      const pf = Math.round(baseSalary * 0.12);
+      const tax = Math.round(baseSalary * 0.08);
+      const allowance = Math.round(baseSalary * 0.15);
+      const netSalary = baseSalary + allowance - pf - tax;
+      return {
+        id: `SLIP-${idx + 1001}`,
+        month,
+        baseSalary,
+        allowance,
+        pf,
+        tax,
+        netSalary,
+        status: 'Credited',
+        paymentDate: `30th ${month.split(' ')[0]} 2026`,
+      };
+    });
+
+    res.status(200).json({ success: true, data: slips });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Delete a teacher profile and user account
+// @route   DELETE /api/teachers/:id
+// @access  Private/Admin
+export const deleteTeacher = async (req, res, next) => {
+  try {
+    const teacher = await Teacher.findById(req.params.id);
+    if (!teacher) {
+      return res.status(404).json({ success: false, message: 'Teacher profile not found' });
+    }
+
+    if (teacher.user) {
+      await User.findByIdAndDelete(teacher.user);
+    }
+    await Teacher.findByIdAndDelete(req.params.id);
+
+    res.status(200).json({ success: true, message: 'Teacher profile deleted successfully' });
   } catch (error) {
     next(error);
   }

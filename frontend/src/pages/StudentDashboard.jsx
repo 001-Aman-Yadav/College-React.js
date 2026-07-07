@@ -3,7 +3,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import { 
   Users, BookOpen, Clock, Banknote, Bell, FileText, Check, X, ShieldAlert, Award, FileSpreadsheet,
   User, CheckCircle, MapPin, Calendar, HelpCircle, GraduationCap, ChevronRight, Lock, Book,
-  CreditCard, Compass, CheckSquare, MessageSquare, AlertCircle, FileCheck, CheckCircle2, ChevronDown, ListTodo
+  CreditCard, Compass, CheckSquare, MessageSquare, AlertCircle, FileCheck, CheckCircle2, ChevronDown, ListTodo,
+  Briefcase, Settings
 } from 'lucide-react';
 import api from '../services/api.js';
 
@@ -17,6 +18,13 @@ const StudentDashboard = () => {
   
   // Dashboard navigation tab
   const [activeTab, setActiveTab] = useState('overview');
+
+  // Placement & Notes states
+  const [studyMaterials, setStudyMaterials] = useState([]);
+  const [jobDrives, setJobDrives] = useState([]);
+  const [placementStatus, setPlacementStatus] = useState('');
+  const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '' });
+  const [passwordStatus, setPasswordStatus] = useState('');
 
   // Fee payment state
   const [paymentModal, setPaymentModal] = useState({ open: false, type: '', amount: 0 });
@@ -57,6 +65,20 @@ const StudentDashboard = () => {
       const res = await api.get('/students/profile');
       if (res.data.success) {
         setProfile(res.data.data);
+      }
+
+      // Fetch study materials and placement drives
+      try {
+        const matRes = await api.get('/students/study-materials');
+        if (matRes.data.success) {
+          setStudyMaterials(matRes.data.data);
+        }
+        const jobRes = await api.get('/placements');
+        if (jobRes.data.success) {
+          setJobDrives(jobRes.data.data);
+        }
+      } catch (e) {
+        console.error('Failed to load dashboard extras:', e.message);
       }
     } catch (err) {
       setError(err.message || 'Failed to fetch student profile.');
@@ -176,6 +198,44 @@ const StudentDashboard = () => {
     setExamSubmitted(true);
   };
 
+  const handleApplyPlacement = async (driveId) => {
+    try {
+      setPlacementStatus('Applying for placement drive...');
+      const res = await api.post(`/students/placements/${driveId}/apply`);
+      if (res.data.success) {
+        setPlacementStatus('Successfully registered for this placement drive!');
+        fetchProfile();
+        setTimeout(() => setPlacementStatus(''), 4000);
+      }
+    } catch (err) {
+      setPlacementStatus(err.response?.data?.message || 'Failed to apply.');
+      setTimeout(() => setPlacementStatus(''), 4000);
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordStatus('New password must be at least 6 characters.');
+      return;
+    }
+    try {
+      setPasswordStatus('Changing password...');
+      const res = await api.put('/auth/change-password', {
+        oldPassword: passwordForm.oldPassword,
+        newPassword: passwordForm.newPassword,
+      });
+      if (res.data.success) {
+        setPasswordStatus('Password changed successfully!');
+        setPasswordForm({ oldPassword: '', newPassword: '' });
+        setTimeout(() => setPasswordStatus(''), 4000);
+      }
+    } catch (err) {
+      setPasswordStatus(err.response?.data?.message || 'Failed to change password. Make sure old password is correct.');
+      setTimeout(() => setPasswordStatus(''), 4000);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-96 items-center justify-center">
@@ -220,6 +280,10 @@ const StudentDashboard = () => {
           { id: 'hostel', label: 'Hostel & Transport', icon: <MapPin className="h-4 w-4" /> },
           { id: 'library', label: 'Library Catalog', icon: <Book className="h-4 w-4" /> },
           { id: 'certs', label: 'Digital Certificates', icon: <FileSpreadsheet className="h-4 w-4" /> },
+          { id: 'materials', label: 'Study Notes Desk', icon: <BookOpen className="h-4 w-4" /> },
+          { id: 'placements', label: 'Corporate Placement', icon: <Briefcase className="h-4 w-4" /> },
+          { id: 'notifications', label: 'Alerts & Messages', icon: <Bell className="h-4 w-4" /> },
+          { id: 'settings', label: 'System Settings', icon: <Settings className="h-4 w-4" /> },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -1007,6 +1071,222 @@ const StudentDashboard = () => {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* STUDY NOTES */}
+        {activeTab === 'materials' && (
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm space-y-6">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-blue-600" />
+              Syllabus Study Materials Desk
+            </h2>
+            <p className="text-xs text-slate-500">
+              Access and download core academic lecture notes, laboratory manuals, and worksheets shared by your subject faculty.
+            </p>
+
+            {studyMaterials.length === 0 ? (
+              <p className="text-xs text-slate-400 py-12 text-center">No study materials uploaded for your course syllabus yet.</p>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {studyMaterials.map((mat) => (
+                  <div key={mat._id} className="rounded-xl border border-slate-150 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-5 flex flex-col justify-between space-y-4">
+                    <div>
+                      <span className="rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+                        {mat.subject}
+                      </span>
+                      <h3 className="font-bold text-sm text-slate-900 dark:text-white mt-2.5">{mat.title}</h3>
+                      <p className="text-xs text-slate-500 mt-1">{mat.description || 'No additional specifications provided.'}</p>
+                    </div>
+                    <div className="border-t border-slate-200/50 dark:border-slate-800 pt-3 flex items-center justify-between text-[10px] text-slate-400">
+                      <span>Shared by: <strong>{mat.uploadedBy}</strong></span>
+                      <a
+                        href={mat.fileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded bg-blue-600 px-3 py-1 font-bold text-white hover:bg-blue-500"
+                      >
+                        Download PDF
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* CORPORATE PLACEMENTS */}
+        {activeTab === 'placements' && (
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm space-y-6">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Briefcase className="h-5 w-5 text-blue-600" />
+              Corporate Recruitment Placement Desk
+            </h2>
+            <p className="text-xs text-slate-500">
+              Review active placement drives matching your specialization. Apply directly and monitor verification/shortlisting updates.
+            </p>
+
+            {placementStatus && (
+              <div className={`rounded-lg p-4 text-xs font-semibold bg-blue-50 text-blue-600 dark:bg-blue-950/20 dark:text-blue-400`}>
+                {placementStatus}
+              </div>
+            )}
+
+            {jobDrives.length === 0 ? (
+              <p className="text-xs text-slate-400 py-12 text-center">No active placement drives scheduled currently. Check back later.</p>
+            ) : (
+              <div className="space-y-4">
+                {jobDrives.map((drive) => {
+                  const studentApplication = drive.applicants?.find(
+                    (app) => app.student === profile._id || app.student?._id === profile._id
+                  );
+                  return (
+                    <div key={drive._id} className="rounded-xl border border-slate-150 dark:border-slate-800 p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:shadow-sm transition">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-extrabold text-base text-slate-900 dark:text-white">{drive.companyName}</h3>
+                          <span className="rounded bg-emerald-50 text-emerald-600 px-2 py-0.5 text-[10px] font-bold">
+                            ₹{drive.packageAmount} LPA
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 font-semibold">{drive.role} | Drive Date: {new Date(drive.driveDate).toLocaleDateString()}</p>
+                        <p className="text-xs text-slate-500 leading-relaxed max-w-xl"><strong className="text-slate-650 dark:text-slate-350">Criteria:</strong> {drive.eligibility}</p>
+                        <p className="text-xs text-slate-400 leading-relaxed max-w-xl">{drive.description}</p>
+                      </div>
+
+                      <div className="flex-shrink-0">
+                        {studentApplication ? (
+                          <div className="flex flex-col items-end gap-1.5">
+                            <span className={`rounded px-3 py-1 text-xs font-bold ${
+                              studentApplication.status === 'Selected' ? 'bg-emerald-500 text-white' :
+                              studentApplication.status === 'Rejected' ? 'bg-red-500 text-white' : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30'
+                            }`}>
+                              Applied ({studentApplication.status})
+                            </span>
+                            <span className="text-[10px] text-slate-400">Registered {new Date(studentApplication.appliedAt).toLocaleDateString()}</span>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleApplyPlacement(drive._id)}
+                            className="rounded-lg bg-blue-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-blue-500 shadow-md"
+                          >
+                            Register Drive
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ALERTS & MESSAGES */}
+        {activeTab === 'notifications' && (
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm space-y-6">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Bell className="h-5 w-5 text-blue-600" />
+              Administrative Bulletins & Inbox
+            </h2>
+            
+            <div className="space-y-4">
+              <h3 className="font-bold text-sm text-slate-455 uppercase border-b pb-2">Broadcast Notices</h3>
+              {[
+                { title: 'Odd Semester Exams Registration Deadline Extension', date: 'Yesterday', sender: 'Exam Office', body: 'The registration deadline with normal fees has been extended to 15th July 2026. Submit your subject choices in the console.' },
+                { title: 'Hostel Biometric Re-enrollment Circular', date: '04 July 2026', sender: 'Warden Block B', body: 'All block residents must complete their fingerprint scan verification at the gate security counter by Saturday.' },
+              ].map((note, idx) => (
+                <div key={idx} className="rounded-lg border border-slate-150 dark:border-slate-800 p-4 space-y-2 bg-slate-50 dark:bg-slate-950">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-bold text-slate-900 dark:text-white">{note.title}</span>
+                    <span className="text-slate-450">{note.date}</span>
+                  </div>
+                  <p className="text-xs text-slate-500 leading-relaxed">{note.body}</p>
+                  <p className="text-[10px] text-blue-500 font-semibold">Origin: {note.sender}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-4 pt-4">
+              <h3 className="font-bold text-sm text-slate-455 uppercase border-b pb-2">Direct Chats</h3>
+              <div className="rounded-lg border border-slate-150 dark:border-slate-800 p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                  <span className="font-bold text-xs">Academic Helpdesk Ticket Chat System (Simulated)</span>
+                </div>
+                <div className="h-48 overflow-y-auto space-y-3 bg-slate-50 dark:bg-slate-955 p-3 rounded border text-xs">
+                  <div className="bg-white dark:bg-slate-900 p-2.5 rounded shadow-sm max-w-sm mr-auto space-y-1">
+                    <p className="text-slate-500 font-semibold text-[10px]">Admin Support (10:15 AM)</p>
+                    <p className="text-slate-850 dark:text-slate-200">Hello! We have reviewed your bonafide query. Your document is now approved and ready to print from the Certificates desk.</p>
+                  </div>
+                  <div className="bg-blue-600 text-white p-2.5 rounded shadow-sm max-w-sm ml-auto text-right space-y-1">
+                    <p className="font-semibold text-[10px] text-blue-200">You (10:20 AM)</p>
+                    <p>Thank you very much. I have downloaded the PDF.</p>
+                  </div>
+                </div>
+                <div className="flex gap-2 text-xs">
+                  <input
+                    type="text"
+                    placeholder="Type message to Academic Admin desk..."
+                    className="flex-1 rounded border px-3 py-2 bg-transparent dark:border-slate-800 focus:outline-none"
+                  />
+                  <button className="rounded bg-blue-600 px-4 py-2 font-bold text-white hover:bg-blue-500">Send</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SYSTEM SETTINGS */}
+        {activeTab === 'settings' && (
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm space-y-6">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Settings className="h-5 w-5 text-blue-600" />
+              Portal Access Configuration
+            </h2>
+            <p className="text-xs text-slate-500">
+              Configure login parameters, update authentication codes, or modify primary contact credentials.
+            </p>
+
+            {passwordStatus && (
+              <div className={`rounded-lg p-4 text-xs font-semibold bg-blue-50 text-blue-600 dark:bg-blue-950/20`}>
+                {passwordStatus}
+              </div>
+            )}
+
+            <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Current Password</label>
+                <input
+                  type="password"
+                  value={passwordForm.oldPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
+                  placeholder="••••••••"
+                  className="w-full rounded border border-slate-350 dark:border-slate-750 bg-transparent px-3 py-2 text-sm focus:border-blue-500 focus:outline-none text-slate-800 dark:text-slate-100"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">New Password</label>
+                <input
+                  type="password"
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                  placeholder="••••••••"
+                  className="w-full rounded border border-slate-350 dark:border-slate-750 bg-transparent px-3 py-2 text-sm focus:border-blue-500 focus:outline-none text-slate-800 dark:text-slate-100"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="rounded-lg bg-blue-600 px-6 py-2.5 text-xs font-semibold text-white hover:bg-blue-500 shadow-md"
+              >
+                Change Access Password
+              </button>
+            </form>
           </div>
         )}
 

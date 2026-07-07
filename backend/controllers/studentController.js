@@ -1,5 +1,7 @@
 import Student from '../models/student.js';
 import Course from '../models/course.js';
+import JobDrive from '../models/jobDrive.js';
+import StudyMaterial from '../models/studyMaterial.js';
 import { buildIDCardPDF } from '../services/pdfService.js';
 import PDFDocument from 'pdfkit';
 
@@ -229,6 +231,61 @@ export const requestLibraryBook = async (req, res, next) => {
     await student.save();
 
     res.status(200).json({ success: true, data: student.libraryBooks });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Apply for placement drive
+// @route   POST /api/students/placements/:driveId/apply
+// @access  Private/Student
+export const applyJobDrive = async (req, res, next) => {
+  try {
+    const student = await Student.findOne({ user: req.user._id });
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student profile not found' });
+    }
+
+    const drive = await JobDrive.findById(req.params.driveId);
+    if (!drive) {
+      return res.status(404).json({ success: false, message: 'Job drive not found' });
+    }
+
+    // Check if already applied
+    const alreadyApplied = drive.applicants.some(
+      (app) => app.student.toString() === student._id.toString()
+    );
+
+    if (alreadyApplied) {
+      return res.status(400).json({ success: false, message: 'You have already applied for this drive.' });
+    }
+
+    drive.applicants.push({
+      student: student._id,
+      appliedAt: new Date(),
+      status: 'Applied',
+    });
+    await drive.save();
+
+    res.status(200).json({ success: true, message: 'Successfully applied for the placement drive.', data: drive });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get student syllabus study materials
+// @route   GET /api/students/study-materials
+// @access  Private/Student
+export const getStudyMaterials = async (req, res, next) => {
+  try {
+    const student = await Student.findOne({ user: req.user._id });
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student profile not found' });
+    }
+
+    // Find study materials matching student course
+    const materials = await StudyMaterial.find({ course: student.course }).sort({ createdAt: -1 });
+    res.status(200).json({ success: true, count: materials.length, data: materials });
   } catch (error) {
     next(error);
   }

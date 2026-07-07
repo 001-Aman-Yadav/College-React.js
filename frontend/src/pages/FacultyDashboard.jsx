@@ -52,6 +52,16 @@ const FacultyDashboard = () => {
     { title: 'PostgreSQL JSONB Queries Practice', subject: 'Database Management', dueDate: '2026-07-22', instructions: 'Write query blocks using ->> operator and create index mappings.' }
   ]);
 
+  // Study Materials, Salary Slips, and Settings states
+  const [uploadedMaterials, setUploadedMaterials] = useState([]);
+  const [coursesList, setCoursesList] = useState([]);
+  const [materialForm, setMaterialForm] = useState({ title: '', courseId: '', subject: '', description: '', fileUrl: '/uploads/mock_pdf.pdf' });
+  const [materialStatus, setMaterialStatus] = useState('');
+  const [salarySlips, setSalarySlips] = useState([]);
+  const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '' });
+  const [passwordStatus, setPasswordStatus] = useState('');
+  const [printSlip, setPrintSlip] = useState(null);
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -73,6 +83,27 @@ const FacultyDashboard = () => {
           initialAtt[s._id] = true;
         });
         setAttendanceRecords(initialAtt);
+      }
+
+      // Fetch extra data for dashboard tabs
+      try {
+        const matRes = await api.get('/teachers/study-materials');
+        if (matRes.data.success) {
+          setUploadedMaterials(matRes.data.data);
+        }
+        const courseRes = await api.get('/courses');
+        if (courseRes.data.success) {
+          setCoursesList(courseRes.data.data);
+          if (courseRes.data.data.length > 0) {
+            setMaterialForm((prev) => ({ ...prev, courseId: courseRes.data.data[0]._id }));
+          }
+        }
+        const slipRes = await api.get('/teachers/salary-slips');
+        if (slipRes.data.success) {
+          setSalarySlips(slipRes.data.data);
+        }
+      } catch (e) {
+        console.error('Failed to load faculty dashboard extras:', e.message);
       }
     } catch (err) {
       setError(err.message || 'Failed to fetch faculty details.');
@@ -180,6 +211,65 @@ const FacultyDashboard = () => {
     setTimeout(() => setAssignmentStatus(''), 4000);
   };
 
+  const handleUploadNotes = async (e) => {
+    e.preventDefault();
+    if (!materialForm.title || !materialForm.courseId || !materialForm.subject) {
+      setMaterialStatus('Please provide title, course, and subject.');
+      return;
+    }
+    try {
+      setMaterialStatus('Uploading study notes...');
+      const res = await api.post('/teachers/study-materials', materialForm);
+      if (res.data.success) {
+        setMaterialStatus('Study notes uploaded and published successfully!');
+        setMaterialForm({ title: '', courseId: coursesList[0]?._id || '', subject: '', description: '', fileUrl: '/uploads/mock_pdf.pdf' });
+        fetchData();
+        setTimeout(() => setMaterialStatus(''), 4000);
+      }
+    } catch (err) {
+      setMaterialStatus('Failed to upload study notes.');
+      setTimeout(() => setMaterialStatus(''), 4000);
+    }
+  };
+
+  const handleDeleteNotes = async (matId) => {
+    try {
+      setMaterialStatus('Deleting notes...');
+      const res = await api.delete(`/teachers/study-materials/${matId}`);
+      if (res.data.success) {
+        setMaterialStatus('Notes deleted successfully!');
+        fetchData();
+        setTimeout(() => setMaterialStatus(''), 4000);
+      }
+    } catch (err) {
+      setMaterialStatus('Failed to delete notes.');
+      setTimeout(() => setMaterialStatus(''), 4000);
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordStatus('New password must be at least 6 characters.');
+      return;
+    }
+    try {
+      setPasswordStatus('Updating password...');
+      const res = await api.put('/auth/change-password', {
+        oldPassword: passwordForm.oldPassword,
+        newPassword: passwordForm.newPassword,
+      });
+      if (res.data.success) {
+        setPasswordStatus('Password changed successfully!');
+        setPasswordForm({ oldPassword: '', newPassword: '' });
+        setTimeout(() => setPasswordStatus(''), 4000);
+      }
+    } catch (err) {
+      setPasswordStatus('Failed to change password. Verify old credentials.');
+      setTimeout(() => setPasswordStatus(''), 4000);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-96 items-center justify-center">
@@ -219,7 +309,10 @@ const FacultyDashboard = () => {
           { id: 'attendance', label: 'Record Attendance', icon: <CheckSquare className="h-4 w-4" /> },
           { id: 'marks', label: 'Marks Grading', icon: <PenTool className="h-4 w-4" /> },
           { id: 'assignments', label: 'Post Homework', icon: <ClipboardList className="h-4 w-4" /> },
+          { id: 'materials', label: 'Upload Study Notes', icon: <BookOpen className="h-4 w-4" /> },
+          { id: 'salary', label: 'Faculty Salary Slips', icon: <Landmark className="h-4 w-4" /> },
           { id: 'leaves', label: 'Casual Leaves', icon: <Calendar className="h-4 w-4" /> },
+          { id: 'settings', label: 'System Settings', icon: <Settings className="h-4 w-4" /> },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -767,7 +860,291 @@ const FacultyDashboard = () => {
           </div>
         )}
 
+        {/* UPLOAD STUDY NOTES */}
+        {activeTab === 'materials' && (
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm space-y-6">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-blue-600" />
+              Syllabus Study Materials Publisher
+            </h2>
+
+            {materialStatus && (
+              <div className={`rounded-lg p-4 text-xs font-semibold bg-blue-50 text-blue-600 dark:bg-blue-950/20`}>
+                {materialStatus}
+              </div>
+            )}
+
+            <form onSubmit={handleUploadNotes} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Notes Title</label>
+                  <input
+                    type="text"
+                    value={materialForm.title}
+                    onChange={(e) => setMaterialForm({ ...materialForm, title: e.target.value })}
+                    placeholder="e.g. Lecture 4: Redux Actions & Slices"
+                    className="w-full rounded border border-slate-350 dark:border-slate-750 bg-transparent px-3 py-2 text-sm focus:border-blue-500 focus:outline-none text-slate-800 dark:text-slate-100"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Subject Name</label>
+                  <input
+                    type="text"
+                    value={materialForm.subject}
+                    onChange={(e) => setMaterialForm({ ...materialForm, subject: e.target.value })}
+                    placeholder="e.g. Web Development"
+                    className="w-full rounded border border-slate-350 dark:border-slate-750 bg-transparent px-3 py-2 text-sm focus:border-blue-500 focus:outline-none text-slate-800 dark:text-slate-100"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Target Course Stream</label>
+                  <select
+                    value={materialForm.courseId}
+                    onChange={(e) => setMaterialForm({ ...materialForm, courseId: e.target.value })}
+                    className="w-full rounded border border-slate-350 dark:border-slate-750 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none text-slate-800 dark:text-slate-100"
+                    required
+                  >
+                    {coursesList.map((c) => (
+                      <option key={c._id} value={c._id}>{c.name} ({c.code})</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Syllabus PDF File Content (Mock URL)</label>
+                  <input
+                    type="text"
+                    value={materialForm.fileUrl}
+                    onChange={(e) => setMaterialForm({ ...materialForm, fileUrl: e.target.value })}
+                    className="w-full rounded border border-slate-350 dark:border-slate-750 bg-transparent px-3 py-2 text-sm focus:border-blue-500 focus:outline-none text-slate-800 dark:text-slate-100"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Syllabus Description / Notes specifications</label>
+                <textarea
+                  value={materialForm.description}
+                  onChange={(e) => setMaterialForm({ ...materialForm, description: e.target.value })}
+                  placeholder="Detail notes summary guidelines..."
+                  rows="3"
+                  className="w-full rounded border border-slate-350 dark:border-slate-750 bg-transparent px-3 py-2 text-sm focus:border-blue-500 focus:outline-none text-slate-800 dark:text-slate-100"
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  className="rounded-lg bg-blue-600 px-6 py-2.5 text-xs font-semibold text-white hover:bg-blue-500 shadow-md"
+                >
+                  Publish Lecture Notes
+                </button>
+              </div>
+            </form>
+
+            <div className="border-t border-slate-100 dark:border-slate-800 pt-6">
+              <h3 className="font-bold text-sm text-slate-455 uppercase mb-4">Your Published Study Materials</h3>
+              <div className="space-y-4">
+                {uploadedMaterials.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-4 text-center">No study materials published by you yet.</p>
+                ) : (
+                  uploadedMaterials.map((mat) => (
+                    <div key={mat._id} className="rounded-lg border border-slate-150 dark:border-slate-800 p-4 flex justify-between items-center text-xs">
+                      <div>
+                        <h4 className="font-bold text-slate-900 dark:text-white">{mat.title}</h4>
+                        <p className="text-slate-500 mt-1">Subject: {mat.subject} | File: {mat.fileUrl}</p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteNotes(mat._id)}
+                        className="rounded bg-red-500 text-white px-3 py-1 font-bold hover:bg-red-400"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* FACULTY SALARY SLIPS */}
+        {activeTab === 'salary' && (
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm space-y-6">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Landmark className="h-5 w-5 text-blue-600" />
+              Monthly Remuneration Slips
+            </h2>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Verify monthly compensation payouts, provident funds, income taxes, and additional house-rent allowances.
+            </p>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-semibold uppercase">
+                    <th className="py-2.5">Pay Slip ID</th>
+                    <th className="py-2.5">Salary Month</th>
+                    <th className="py-2.5">Basic Salary</th>
+                    <th className="py-2.5">Net Credit</th>
+                    <th className="py-2.5">Status</th>
+                    <th className="py-2.5 text-center">Remittance Slip</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {salarySlips.map((slip) => (
+                    <tr key={slip.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850">
+                      <td className="py-3 font-semibold text-blue-600">{slip.id}</td>
+                      <td className="py-3 font-medium">{slip.month}</td>
+                      <td className="py-3">₹{slip.baseSalary.toLocaleString()}</td>
+                      <td className="py-3 font-bold text-emerald-600">₹{slip.netSalary.toLocaleString()}</td>
+                      <td className="py-3"><span className="rounded bg-emerald-50 text-emerald-600 px-2 py-0.5 text-[9px] font-bold">{slip.status}</span></td>
+                      <td className="py-3 text-center">
+                        <button
+                          onClick={() => setPrintSlip(slip)}
+                          className="rounded bg-blue-50 dark:bg-slate-800 px-2.5 py-1 text-blue-600 dark:text-blue-400 font-bold hover:bg-blue-100 text-[10px]"
+                        >
+                          Print / View Slip
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* SYSTEM ACCESS SETTINGS */}
+        {activeTab === 'settings' && (
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm space-y-6">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Settings className="h-5 w-5 text-blue-600" />
+              Portal Access Configuration
+            </h2>
+            <p className="text-xs text-slate-500">
+              Update portal login access codes to secure academic records.
+            </p>
+
+            {passwordStatus && (
+              <div className={`rounded-lg p-4 text-xs font-semibold bg-blue-50 text-blue-600 dark:bg-blue-950/20`}>
+                {passwordStatus}
+              </div>
+            )}
+
+            <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Current Password</label>
+                <input
+                  type="password"
+                  value={passwordForm.oldPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
+                  placeholder="••••••••"
+                  className="w-full rounded border border-slate-350 dark:border-slate-750 bg-transparent px-3 py-2 text-sm focus:border-blue-500 focus:outline-none text-slate-800 dark:text-slate-100"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">New Password</label>
+                <input
+                  type="password"
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                  placeholder="••••••••"
+                  className="w-full rounded border border-slate-350 dark:border-slate-750 bg-transparent px-3 py-2 text-sm focus:border-blue-500 focus:outline-none text-slate-800 dark:text-slate-100"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="rounded-lg bg-blue-600 px-6 py-2.5 text-xs font-semibold text-white hover:bg-blue-500 shadow-md"
+              >
+                Change Access Password
+              </button>
+            </form>
+          </div>
+        )}
+
       </main>
+
+      {/* PRINT SLIP MODAL */}
+      {printSlip && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 shadow-2xl relative space-y-6">
+            <button
+              onClick={() => setPrintSlip(null)}
+              className="absolute right-4 top-4 text-slate-400 hover:text-slate-650"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            {/* Header */}
+            <div className="text-center border-b pb-4 dark:border-slate-800">
+              <h3 className="font-extrabold text-lg text-slate-900 dark:text-white">METROPOLITAN UNIVERSITY</h3>
+              <p className="text-[10px] text-slate-450 uppercase font-bold tracking-wider">Salary Remittance Pay Slip</p>
+              <p className="text-[10px] text-slate-400">Statement for: {printSlip.month}</p>
+            </div>
+
+            {/* Slip Meta */}
+            <div className="grid grid-cols-2 gap-4 text-xs border-b pb-4 dark:border-slate-800 text-slate-600 dark:text-slate-400">
+              <p><strong>Employee:</strong> Prof. {firstName} {lastName}</p>
+              <p><strong>Department:</strong> {department}</p>
+              <p><strong>Slip reference:</strong> {printSlip.id}</p>
+              <p><strong>Payment Date:</strong> {printSlip.paymentDate}</p>
+            </div>
+
+            {/* Ledger */}
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between border-b pb-1.5 font-bold uppercase text-[10px] text-slate-400">
+                <span>Earning Details</span>
+                <span>Amount (INR)</span>
+              </div>
+              <div className="flex justify-between text-slate-700 dark:text-slate-300">
+                <span>Basic Salary</span>
+                <span>₹{printSlip.baseSalary.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-slate-700 dark:text-slate-300">
+                <span>Dearness & House Allowances</span>
+                <span>+ ₹{printSlip.allowance.toLocaleString()}</span>
+              </div>
+              
+              <div className="flex justify-between border-b pb-1.5 pt-4 font-bold uppercase text-[10px] text-slate-400">
+                <span>Deductions</span>
+                <span>Amount (INR)</span>
+              </div>
+              <div className="flex justify-between text-slate-700 dark:text-slate-300">
+                <span>Provident Fund (PF) Contribution</span>
+                <span>- ₹{printSlip.pf.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-slate-700 dark:text-slate-300">
+                <span>Professional Income Tax</span>
+                <span>- ₹{printSlip.tax.toLocaleString()}</span>
+              </div>
+            </div>
+
+            {/* Totals */}
+            <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-4 border dark:border-slate-850 flex justify-between items-center font-bold text-sm">
+              <span>Net Remuneration Credited:</span>
+              <span className="text-emerald-600 text-base">₹{printSlip.netSalary.toLocaleString()}</span>
+            </div>
+
+            <button
+              onClick={() => window.print()}
+              className="w-full rounded-lg bg-blue-600 py-3 text-xs font-semibold text-white hover:bg-blue-500 shadow-md"
+            >
+              Print Pay Slip Statement
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

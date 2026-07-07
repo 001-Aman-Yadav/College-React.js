@@ -2,6 +2,7 @@ import User from '../models/user.js';
 import Student from '../models/student.js';
 import Teacher from '../models/teacher.js';
 import jwt from 'jsonwebtoken';
+import { sendResetOTPEmail } from '../services/emailService.js';
 
 // Helper to generate access token
 const generateAccessToken = (user) => {
@@ -164,6 +165,94 @@ export const logout = async (req, res, next) => {
       await user.save();
     }
     res.status(200).json({ success: true, message: 'Logged out successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Request Password Reset OTP
+// @route   POST /api/auth/forgot-password
+// @access  Public
+export const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'No account associated with this email.' });
+    }
+
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    user.otp = {
+      code: otpCode,
+      expiresAt: otpExpires,
+    };
+    await user.save();
+
+    await sendResetOTPEmail(email, otpCode);
+
+    res.status(200).json({ success: true, message: 'Verification OTP sent to your email.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Verify Reset OTP
+// @route   POST /api/auth/verify-otp
+// @access  Public
+export const verifyOTP = async (req, res, next) => {
+  try {
+    const { email, otp } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user || !user.otp || user.otp.code !== otp || new Date() > new Date(user.otp.expiresAt)) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired OTP.' });
+    }
+
+    res.status(200).json({ success: true, message: 'OTP verified successfully.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Reset Password with verified OTP
+// @route   POST /api/auth/reset-password
+// @access  Public
+export const resetPassword = async (req, res, next) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user || !user.otp || user.otp.code !== otp || new Date() > new Date(user.otp.expiresAt)) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired session.' });
+    }
+
+    user.password = newPassword; // Pre-save hook will hash it automatically
+    user.otp = undefined; // Clear OTP data
+    await user.save();
+
+    res.status(200).json({ success: true, message: 'Password has been reset successfully.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Change logged in user password
+// @route   PUT /api/auth/change-password
+// @access  Private
+export const changePassword = async (req, res, next) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    const user = await User.findById(req.user._id).select('+password');
+    if (!user || !(await user.comparePassword(oldPassword))) {
+      return res.status(400).json({ success: false, message: 'Incorrect old password.' });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({ success: true, message: 'Password updated successfully' });
   } catch (error) {
     next(error);
   }
